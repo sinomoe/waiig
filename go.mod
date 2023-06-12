@@ -1,3 +1,3 @@
-module github.com/sinomoe/waiig
+module monkey
 
 go 1.20
