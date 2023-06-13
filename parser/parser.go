@@ -7,12 +7,41 @@ import (
 	"monkey/token"
 )
 
+type (
+	// prefixParseFn 前缀解析函数
+	prefixParseFn func() ast.Expression
+	// infixParseFn 中缀解析函数，接受的参数为中缀运算符左边的表达式，由于前缀运算符左边没有表达式，故无参数
+	infixParseFn func(ast.Expression) ast.Expression
+)
+
+const (
+	// 定义运算符优先级
+	_ int = iota
+	LOWEST
+	EQUALS      // ==
+	LESSGREATER // > or <
+	SUM         // +
+	PRODUCT     // *
+	PREFIX      // -X or !X
+	CALL        // myFunction(X)
+)
+
 // Parser 是语法解析器，负责将词法单元解析为 AST
 type Parser struct {
 	l         *lexer.Lexer
 	errors    []string
 	curToken  token.Token // 输入中的当前词法单元
 	peekToken token.Token // 下一个词法单元
+
+	prefixParseFns map[token.TokenType]prefixParseFn // 存放处理前缀词法单元的解析函数
+	infixParseFns  map[token.TokenType]infixParseFn  // 存放处理中缀词法单元的解析函数
+}
+
+func (p *Parser) registerPrefix(tokenType token.TokenType, fn prefixParseFn) {
+	p.prefixParseFns[tokenType] = fn
+}
+func (p *Parser) registerInfix(tokenType token.TokenType, fn infixParseFn) {
+	p.infixParseFns[tokenType] = fn
 }
 
 func New(l *lexer.Lexer) *Parser {
@@ -20,6 +49,10 @@ func New(l *lexer.Lexer) *Parser {
 		l:      l,
 		errors: []string{},
 	}
+	// 初始化前缀解析函数
+	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
+	p.registerPrefix(token.IDENT, p.parseIdentifier)
+
 	// 读取两个词法单元，以设置curToken和peekToken
 	p.nextToken()
 	p.nextToken()
@@ -52,7 +85,7 @@ func (p *Parser) parseStatement() ast.Statement {
 	case token.RETURN:
 		return p.parseReturnStatement()
 	default:
-		return nil
+		return p.parseExpressionStatement()
 	}
 }
 
@@ -74,6 +107,7 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	return stmt
 }
 
+// parseReturnStatement 解析 return 语句
 func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	stmt := &ast.ReturnStatement{Token: p.curToken}
 	// 指向 return 的下一个 token
@@ -83,6 +117,30 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 		p.nextToken()
 	}
 	return stmt
+}
+
+// parseExpressionStatement 表达式语句
+func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
+	stmt := &ast.ExpressionStatement{Token: p.curToken}
+	stmt.Expression = p.parseExpression(LOWEST)
+	if p.peekTokenIs(token.SEMICOLON) {
+		p.nextToken()
+	}
+	return stmt
+}
+
+func (p *Parser) parseExpression(precedence int) ast.Expression {
+	prefix := p.prefixParseFns[p.curToken.Type]
+	if prefix == nil {
+		return nil
+	}
+	leftExp := prefix()
+	return leftExp
+}
+
+// parseIdentifier 标识符表达式解析函数，前缀解析函数
+func (p *Parser) parseIdentifier() ast.Expression {
+	return &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 }
 
 func (p *Parser) curTokenIs(t token.TokenType) bool {
