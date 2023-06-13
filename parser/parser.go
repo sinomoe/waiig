@@ -50,7 +50,7 @@ func New(l *lexer.Lexer) *Parser {
 		l:      l,
 		errors: []string{},
 	}
-	// 初始化前缀解析函数
+	// 初始化前缀解析函数，标识符和字面量部署运算符，属于特殊的前缀解析函数
 	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
 	p.registerPrefix(token.IDENT, p.parseIdentifier)
 	p.registerPrefix(token.INT, p.parseIntegerLiteral)
@@ -139,12 +139,12 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 	return leftExp
 }
 
-// parseIdentifier 标识符表达式解析函数，前缀解析函数
+// parseIdentifier 标识符表达式解析函数
 func (p *Parser) parseIdentifier() ast.Expression {
 	return &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 }
 
-// parseIntegerLiteral 整数字面量表达式解析函数，前缀解析函数
+// parseIntegerLiteral 整数字面量表达式解析函数
 func (p *Parser) parseIntegerLiteral() ast.Expression {
 	lit := &ast.IntegerLiteral{Token: p.curToken}
 	value, err := strconv.ParseInt(p.curToken.Literal, 0, 64)
