@@ -52,8 +52,10 @@ func New(l *lexer.Lexer) *Parser {
 	}
 	// 初始化前缀解析函数，标识符和字面量部署运算符，属于特殊的前缀解析函数
 	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
-	p.registerPrefix(token.IDENT, p.parseIdentifier)
+	p.registerPrefix(token.IDENT, p.parseIdentifier) // 这两个解析函数相当于递归的 base case，因为他们的解析还书里不包含对 parseExpression 的递归调用
 	p.registerPrefix(token.INT, p.parseIntegerLiteral)
+	p.registerPrefix(token.BANG, p.parsePrefixExpression)
+	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
 	// 读取两个词法单元，以设置curToken和peekToken
 	p.nextToken()
 	p.nextToken()
@@ -63,6 +65,35 @@ func New(l *lexer.Lexer) *Parser {
 func (p *Parser) nextToken() {
 	p.curToken = p.peekToken
 	p.peekToken = p.l.NextToken()
+}
+
+func (p *Parser) curTokenIs(t token.TokenType) bool {
+	return p.curToken.Type == t
+}
+
+func (p *Parser) peekTokenIs(t token.TokenType) bool {
+	return p.peekToken.Type == t
+}
+
+func (p *Parser) expectPeek(t token.TokenType) bool {
+	if p.peekTokenIs(t) {
+		p.nextToken()
+		return true
+	} else {
+		p.peekError(t)
+		return false
+	}
+}
+
+func (p *Parser) Errors() []string {
+	return p.errors
+}
+
+// peekError 向 l.errors 中追加错误信息
+func (p *Parser) peekError(t token.TokenType) {
+	msg := fmt.Sprintf("expected next token to be %s, got %s instead",
+		t, p.peekToken.Type)
+	p.errors = append(p.errors, msg)
 }
 
 func (p *Parser) ParseProgram() *ast.Program {
@@ -157,31 +188,13 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 	return lit
 }
 
-func (p *Parser) curTokenIs(t token.TokenType) bool {
-	return p.curToken.Type == t
-}
-
-func (p *Parser) peekTokenIs(t token.TokenType) bool {
-	return p.peekToken.Type == t
-}
-
-func (p *Parser) expectPeek(t token.TokenType) bool {
-	if p.peekTokenIs(t) {
-		p.nextToken()
-		return true
-	} else {
-		p.peekError(t)
-		return false
+// parsePrefixExpression 前缀表达式解析函数
+func (p *Parser) parsePrefixExpression() ast.Expression {
+	pe := &ast.PrefixExpression{
+		Token:    p.curToken,
+		Operator: p.curToken.Literal,
 	}
-}
-
-func (p *Parser) Errors() []string {
-	return p.errors
-}
-
-// peekError 向 l.errors 中追加错误信息
-func (p *Parser) peekError(t token.TokenType) {
-	msg := fmt.Sprintf("expected next token to be %s, got %s instead",
-		t, p.peekToken.Type)
-	p.errors = append(p.errors, msg)
+	p.nextToken()
+	pe.Right = p.parseExpression(PREFIX)
+	return pe
 }
