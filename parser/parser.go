@@ -63,8 +63,11 @@ func New(l *lexer.Lexer) *Parser {
 	}
 	// 初始化前缀解析函数，标识符和字面量部署运算符，属于特殊的前缀解析函数
 	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
-	p.registerPrefix(token.IDENT, p.parseIdentifier) // 这两个解析函数相当于递归的 base case，因为他们的解析还书里不包含对 parseExpression 的递归调用
+	p.registerPrefix(token.IDENT, p.parseIdentifier) // 这四个解析函数相当于递归的 base case，因为他们的解析还书里不包含对 parseExpression 的递归调用
 	p.registerPrefix(token.INT, p.parseIntegerLiteral)
+	p.registerPrefix(token.FALSE, p.parseBooleanLiteral)
+	p.registerPrefix(token.TRUE, p.parseBooleanLiteral)
+
 	p.registerPrefix(token.BANG, p.parsePrefixExpression)
 	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
 
@@ -236,6 +239,13 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 	}
 	lit.Value = value
 	return lit
+}
+
+func (p *Parser) parseBooleanLiteral() ast.Expression {
+	return &ast.BooleanLiteral{
+		Token: p.curToken,
+		Value: p.curTokenIs(token.TRUE),
+	}
 }
 
 // parsePrefixExpression 前缀表达式解析函数
