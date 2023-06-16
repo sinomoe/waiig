@@ -93,6 +93,22 @@ func (rs *ReturnStatement) String() string {
 	return out.String()
 }
 
+// BlockStatement 由 {} 包裹的多条语句组成的语句块
+type BlockStatement struct {
+	Token      token.Token // { 词法单元
+	Statements []Statement
+}
+
+func (bs *BlockStatement) statementNode()       {}
+func (bs *BlockStatement) TokenLiteral() string { return bs.Token.Literal }
+func (bs *BlockStatement) String() string {
+	var out bytes.Buffer
+	for _, stmt := range bs.Statements {
+		out.WriteString(stmt.String())
+	}
+	return out.String()
+}
+
 // ExpressionStatement 表达式语句，用于表示单行表达式，例如 x+1;
 type ExpressionStatement struct {
 	Token      token.Token // 该表达式中的第一个词法单元
@@ -162,5 +178,28 @@ func (ie *InfixExpression) String() string {
 	out.WriteString(" " + ie.Operator + " ")
 	out.WriteString(ie.Right.String())
 	out.WriteString(")")
+	return out.String()
+}
+
+// IfExpression if 表达式
+type IfExpression struct {
+	Token       token.Token // if 词法单元
+	Condition   Expression
+	Consequence *BlockStatement
+	Alternative *BlockStatement
+}
+
+func (ie *IfExpression) expressionNode()      {}
+func (ie *IfExpression) TokenLiteral() string { return ie.Token.Literal }
+func (ie *IfExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString("if")
+	out.WriteString(ie.Condition.String())
+	out.WriteString(" ")
+	out.WriteString(ie.Consequence.String())
+	if ie.Alternative != nil {
+		out.WriteString("else")
+		out.WriteString(ie.Alternative.String())
+	}
 	return out.String()
 }

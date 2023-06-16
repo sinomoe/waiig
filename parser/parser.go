@@ -71,6 +71,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.BANG, p.parsePrefixExpression)
 	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
 	p.registerPrefix(token.LPAREN, p.parseGroupedExpression) // 解析括号表达式
+	p.registerPrefix(token.IF, p.parseIfExpression)          // 解析 if 表达式
 
 	// 初始化中缀表达式解释函数
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
@@ -282,4 +283,46 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 		return nil
 	}
 	return exp
+}
+
+// parseIfExpression 解析 if 表达式
+func (p *Parser) parseIfExpression() ast.Expression {
+	ie := &ast.IfExpression{
+		Token: p.curToken,
+	}
+	if !p.expectPeek(token.LPAREN) {
+		return nil
+	}
+	p.nextToken()
+	ie.Condition = p.parseExpression(LOWEST)
+	if !p.expectPeek(token.RPAREN) {
+		return nil
+	}
+	if !p.expectPeek(token.LBRACE) {
+		return nil
+	}
+	ie.Consequence = p.parseBlockStatement()
+	if !p.peekTokenIs(token.ELSE) {
+		return ie
+	}
+	p.nextToken()
+	if !p.expectPeek(token.LBRACE) {
+		return nil
+	}
+	ie.Alternative = p.parseBlockStatement()
+	return ie
+}
+
+// parseBlockStatement 解析语句块 {}
+func (p *Parser) parseBlockStatement() *ast.BlockStatement {
+	bs := &ast.BlockStatement{
+		Token:      p.curToken,
+		Statements: []ast.Statement{},
+	}
+	p.nextToken() // 指向 { 的下一个 token
+	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
+		bs.Statements = append(bs.Statements, p.parseStatement())
+		p.nextToken()
+	}
+	return bs
 }
