@@ -72,6 +72,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.MINUS, p.parsePrefixExpression)
 	p.registerPrefix(token.LPAREN, p.parseGroupedExpression) // 解析括号表达式
 	p.registerPrefix(token.IF, p.parseIfExpression)          // 解析 if 表达式
+	p.registerPrefix(token.FUNCTION, p.parseFunctionLiteral)
 
 	// 初始化中缀表达式解释函数
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
@@ -207,6 +208,7 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	return stmt
 }
 
+// parseExpression 表达式解析函数
 func (p *Parser) parseExpression(precedence int) ast.Expression {
 	prefix := p.prefixParseFns[p.curToken.Type]
 	if prefix == nil {
@@ -243,6 +245,7 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 	return lit
 }
 
+// parseBooleanLiteral 布尔字面量解析函数
 func (p *Parser) parseBooleanLiteral() ast.Expression {
 	return &ast.BooleanLiteral{
 		Token: p.curToken,
@@ -325,4 +328,45 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 		p.nextToken()
 	}
 	return bs
+}
+
+// parseFunctionLiteral 函数字面量解析函数
+func (p *Parser) parseFunctionLiteral() ast.Expression {
+	fl := &ast.FunctionLiteral{
+		Token:      p.curToken,
+		Parameters: []*ast.Identifier{},
+	}
+	if !p.expectPeek(token.LPAREN) {
+		return nil
+	}
+	fl.Parameters = p.parseFunctionParameters()
+	if !p.expectPeek(token.LBRACE) {
+		return nil
+	}
+	fl.Body = p.parseBlockStatement()
+	return fl
+}
+
+// parseFunctionParameters 解析函数形参列表, (a,b,c) () (a)
+func (p *Parser) parseFunctionParameters() []*ast.Identifier {
+	ids := []*ast.Identifier{}
+	if p.peekTokenIs(token.RPAREN) {
+		p.nextToken()
+		return ids
+	}
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	}
+	ids = append(ids, p.parseIdentifier().(*ast.Identifier))
+	for p.peekTokenIs(token.COMMA) {
+		p.nextToken()
+		if !p.expectPeek(token.IDENT) {
+			return nil
+		}
+		ids = append(ids, p.parseIdentifier().(*ast.Identifier))
+	}
+	if !p.expectPeek(token.RPAREN) {
+		return nil
+	}
+	return ids
 }
