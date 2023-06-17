@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"fmt"
 	"monkey/ast"
 	"monkey/object"
 )
@@ -25,13 +26,33 @@ func Eval(node ast.Node) object.Object {
 	case *ast.BlockStatement:
 		return evalBlockStatement(v.Statements)
 	case *ast.ReturnStatement:
-		return &object.ReturnValue{Value: Eval(v.ReturnValue)}
+		val := Eval(v.ReturnValue)
+		if isError(val) {
+			return val
+		}
+		return &object.ReturnValue{Value: val}
 	case *ast.PrefixExpression:
-		return evalPrefixExpression(v.Operator, Eval(v.Right))
+		val := Eval(v.Right)
+		if isError(val) {
+			return val
+		}
+		return evalPrefixExpression(v.Operator, val)
 	case *ast.InfixExpression:
-		return evalInfixExpression(v.Operator, Eval(v.Left), Eval(v.Right))
+		lVal := Eval(v.Left)
+		if isError(lVal) {
+			return lVal
+		}
+		rVal := Eval(v.Right)
+		if isError(rVal) {
+			return rVal
+		}
+		return evalInfixExpression(v.Operator, lVal, rVal)
 	case *ast.IfExpression:
-		return evalIfExpression(Eval(v.Condition), v.Consequence, v.Alternative)
+		val := Eval(v.Condition)
+		if isError(val) {
+			return val
+		}
+		return evalIfExpression(val, v.Consequence, v.Alternative)
 	default:
 		return NULL
 	}
@@ -42,6 +63,10 @@ func evalBlockStatement(stmts []ast.Statement) object.Object {
 	var result object.Object
 	for _, statement := range stmts {
 		result = Eval(statement)
+		// 求值的到解析错误则立刻返回
+		if result.Type() == object.ERROR_OBJ {
+			return result
+		}
 		// 如果遇到了返回值 终止继续向下解析语句
 		// 由于这里需要能识别出 返回值 故必须要多出一个返回值类型的 object
 		if result.Type() == object.RETURN_VALUE_OBJ {
@@ -59,13 +84,17 @@ func evalProgram(stmts []ast.Statement) object.Object {
 	var result object.Object
 	for _, statement := range stmts {
 		result = Eval(statement)
-		// 如果遇到了返回值 终止继续向下解析语句
-		// 由于这里需要能识别出 返回值 故必须要多出一个返回值类型的 object
-		if retVal, ok := result.(*object.ReturnValue); ok {
+		switch result := result.(type) {
+		case *object.ReturnValue:
+			// 如果遇到了返回值 终止继续向下解析语句
+			// 由于这里需要能识别出 返回值 故必须要多出一个返回值类型的 object
 			// 因为 program 本质就是最顶层的 block
 			// 不存在更上层的 block 需要感知到 ReturnValue
 			// 故在这里直接解包 ReturnValue 拿到解包的值
-			return retVal.Value
+			return result.Value
+		case *object.Error:
+			// 求值的到解析错误则立刻返回
+			return result
 		}
 	}
 	return result
@@ -96,9 +125,12 @@ func evalBangOperatorExpression(right object.Object) object.Object {
 		return FALSE
 	case FALSE, NULL:
 		return TRUE
-	default:
-		return FALSE
 	}
+	// 非 0 整数也视作 true
+	if val, ok := right.(*object.Integer); ok {
+		return nativeBoolToBooleanObject(val.Value == 0)
+	}
+	return newError("unknown operator: !%s", right.Type())
 }
 
 // evalMinusPrefixOperatorExpression 负数表达式
@@ -109,7 +141,7 @@ func evalMinusPrefixOperatorExpression(right object.Object) object.Object {
 			Value: -v.Value,
 		}
 	default:
-		return NULL
+		return newError("unknown operator: -%s", right.Type())
 	}
 }
 
@@ -120,8 +152,10 @@ func evalInfixExpression(operator string, left, right object.Object) object.Obje
 		return evalIntegerInfixExpression(operator, left, right)
 	case left.Type() == object.BOOLEAN_OBJ && right.Type() == object.BOOLEAN_OBJ:
 		return evalBooleanInfixExpression(operator, left, right)
+	case left.Type() != right.Type():
+		return newError("type mismatch: %s %s %s", left.Type(), operator, right.Type())
 	default:
-		return NULL
+		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
 
@@ -148,7 +182,7 @@ func evalIntegerInfixExpression(operator string, left, right object.Object) obje
 	case "!=":
 		return nativeBoolToBooleanObject(leftVal != rightVal)
 	default:
-		return NULL
+		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
 
@@ -163,7 +197,7 @@ func evalBooleanInfixExpression(operator string, left, right object.Object) obje
 	case "!=":
 		return nativeBoolToBooleanObject(leftVal != rightVal)
 	default:
-		return NULL
+		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
 }
 
@@ -188,6 +222,19 @@ func isTruthy(obj object.Object) bool {
 	}
 	if v, ok := obj.(*object.Integer); ok {
 		return v.Value != 0
+	}
+	return false
+}
+
+func newError(format string, a ...interface{}) *object.Error {
+	return &object.Error{Message: fmt.Sprintf(format, a...)}
+}
+
+// isError 检查求值是否出错
+// 所有调用 Eval 后都需要立刻检查 isError 并尽快返回 防止错误到处传播
+func isError(obj object.Object) bool {
+	if obj != nil {
+		return obj.Type() == object.ERROR_OBJ
 	}
 	return false
 }
