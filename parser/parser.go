@@ -27,6 +27,7 @@ const (
 	CALL        // myFunction(X)
 )
 
+// precedences 中缀表达式优先级表
 var precedences = map[token.TokenType]int{
 	token.EQ:       EQUALS,
 	token.NOT_EQ:   EQUALS,
@@ -36,6 +37,7 @@ var precedences = map[token.TokenType]int{
 	token.MINUS:    SUM,
 	token.SLASH:    PRODUCT,
 	token.ASTERISK: PRODUCT,
+	token.LPAREN:   CALL,
 }
 
 // Parser 是语法解析器，负责将词法单元解析为 AST
@@ -84,6 +86,8 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(token.NOT_EQ, p.parseInfixExpression)
 	p.registerInfix(token.LT, p.parseInfixExpression)
 	p.registerInfix(token.GT, p.parseInfixExpression)
+
+	p.registerInfix(token.LPAREN, p.parseCallExpression) // 解析函数调用,  把函数调用当作中缀表达式
 	// 读取两个词法单元，以设置curToken和peekToken
 	p.nextToken()
 	p.nextToken()
@@ -208,7 +212,7 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	return stmt
 }
 
-// parseExpression 表达式解析函数
+// parseExpression 表达式解析函数, 调用时 curToken 是表达式第一个 token, 返回后 curToken 是表达式最后一个 token
 func (p *Parser) parseExpression(precedence int) ast.Expression {
 	prefix := p.prefixParseFns[p.curToken.Type]
 	if prefix == nil {
@@ -369,4 +373,32 @@ func (p *Parser) parseFunctionParameters() []*ast.Identifier {
 		return nil
 	}
 	return ids
+}
+
+// parseCallExpression 函数调用解析函数, 函数调用是一种中缀表达式, 左边的表达式是函数
+func (p *Parser) parseCallExpression(left ast.Expression) ast.Expression {
+	return &ast.CallExpression{
+		Token:     p.curToken,
+		Function:  left,
+		Arguments: p.parseCallExpressionArguments(),
+	}
+}
+
+// parseCallExpressionArguments 解析函数实参列表, (a,b,c) () (a) (a+1, b, 3)
+func (p *Parser) parseCallExpressionArguments() []ast.Expression {
+	args := []ast.Expression{}
+	p.nextToken()
+	if p.curTokenIs(token.RPAREN) {
+		return args
+	}
+	args = append(args, p.parseExpression(LOWEST))
+	for p.peekTokenIs(token.COMMA) {
+		p.nextToken() // curToken=COMMA
+		p.nextToken() // curToken=表达式第一个 token
+		args = append(args, p.parseExpression(LOWEST))
+	}
+	if !p.expectPeek(token.RPAREN) {
+		return nil
+	}
+	return args
 }

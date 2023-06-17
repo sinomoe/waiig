@@ -135,6 +135,7 @@ func (il *IntegerLiteral) expressionNode()      {}
 func (il *IntegerLiteral) TokenLiteral() string { return il.Token.Literal }
 func (il *IntegerLiteral) String() string       { return il.Token.Literal }
 
+// BooleanLiteral 布尔字面量表达式节点
 type BooleanLiteral struct {
 	Token token.Token
 	Value bool
@@ -205,6 +206,7 @@ func (ie *IfExpression) String() string {
 	return out.String()
 }
 
+// FunctionLiteral 函数字面量表达式节点
 type FunctionLiteral struct {
 	Token      token.Token
 	Parameters []*Identifier
@@ -224,5 +226,27 @@ func (fl *FunctionLiteral) String() string {
 	out.WriteString(strings.Join(params, ", "))
 	out.WriteString(")")
 	out.WriteString(fl.Body.String())
+	return out.String()
+}
+
+// CallExpression 函数调用表达式节点
+type CallExpression struct {
+	Token     token.Token  // ( 词法单元
+	Function  Expression   // 标识符或者字面量
+	Arguments []Expression // 实参
+}
+
+func (ce *CallExpression) expressionNode()      {}
+func (ce *CallExpression) TokenLiteral() string { return ce.Token.Literal }
+func (ce *CallExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString(ce.Function.String())
+	args := []string{}
+	for _, arg := range ce.Arguments {
+		args = append(args, arg.String())
+	}
+	out.WriteString("(")
+	out.WriteString(strings.Join(args, ", "))
+	out.WriteString(")")
 	return out.String()
 }
