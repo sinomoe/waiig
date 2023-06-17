@@ -104,9 +104,13 @@ func (bs *BlockStatement) statementNode()       {}
 func (bs *BlockStatement) TokenLiteral() string { return bs.Token.Literal }
 func (bs *BlockStatement) String() string {
 	var out bytes.Buffer
+	var stmts []string
 	for _, stmt := range bs.Statements {
-		out.WriteString(stmt.String())
+		stmts = append(stmts, stmt.String())
 	}
+	out.WriteString("{ ")
+	out.WriteString(strings.Join(stmts, " "))
+	out.WriteString(" }")
 	return out.String()
 }
 
@@ -225,6 +229,7 @@ func (fl *FunctionLiteral) String() string {
 	out.WriteString("(")
 	out.WriteString(strings.Join(params, ", "))
 	out.WriteString(")")
+	out.WriteString(" ")
 	out.WriteString(fl.Body.String())
 	return out.String()
 }

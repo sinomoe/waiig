@@ -89,8 +89,8 @@ func New(l *lexer.Lexer) *Parser {
 
 	p.registerInfix(token.LPAREN, p.parseCallExpression) // 解析函数调用,  把函数调用当作中缀表达式
 	// 读取两个词法单元，以设置curToken和peekToken
-	p.nextToken()
-	p.nextToken()
+	p.nextToken() // curToken=nil peekToken=第一个 token
+	p.nextToken() // curToken=第一个词法单元 peekToken=第二个词法单元
 	return p
 }
 
@@ -185,8 +185,8 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	}
 	p.nextToken() // curToken=表达式第一个 token
 	stmt.Value = p.parseExpression(LOWEST)
-	if !p.expectPeek(token.SEMICOLON) {
-		return nil
+	if p.peekTokenIs(token.SEMICOLON) { // 允许 let 语句后不带分号
+		p.nextToken()
 	}
 	return stmt
 }
@@ -197,8 +197,8 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	// 指向 return 的下一个 token
 	p.nextToken()
 	stmt.ReturnValue = p.parseExpression(LOWEST)
-	if !p.expectPeek(token.SEMICOLON) {
-		return nil
+	if p.peekTokenIs(token.SEMICOLON) { // 允许 return 语句后不带分号
+		p.nextToken()
 	}
 	return stmt
 }
@@ -207,7 +207,7 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	stmt := &ast.ExpressionStatement{Token: p.curToken}
 	stmt.Expression = p.parseExpression(LOWEST)
-	if p.peekTokenIs(token.SEMICOLON) {
+	if p.peekTokenIs(token.SEMICOLON) { // 允许表达式语句后不带分号
 		p.nextToken()
 	}
 	return stmt
