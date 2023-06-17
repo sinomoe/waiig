@@ -15,17 +15,17 @@ var (
 func Eval(node ast.Node) object.Object {
 	switch v := node.(type) {
 	case *ast.IntegerLiteral:
-		return &object.Integer{
-			Value: v.Value,
-		}
+		return &object.Integer{Value: v.Value}
 	case *ast.BooleanLiteral:
 		return nativeBoolToBooleanObject(v.Value)
 	case *ast.Program:
-		return evalStatements(v.Statements)
+		return evalProgram(v.Statements)
 	case *ast.ExpressionStatement:
 		return Eval(v.Expression)
 	case *ast.BlockStatement:
-		return evalStatements(v.Statements)
+		return evalBlockStatement(v.Statements)
+	case *ast.ReturnStatement:
+		return &object.ReturnValue{Value: Eval(v.ReturnValue)}
 	case *ast.PrefixExpression:
 		return evalPrefixExpression(v.Operator, Eval(v.Right))
 	case *ast.InfixExpression:
@@ -37,10 +37,36 @@ func Eval(node ast.Node) object.Object {
 	}
 }
 
-func evalStatements(stmts []ast.Statement) object.Object {
+// evalBlockStatement 对多条语句求值,多条语句的求值结果为最后一条语句的求值结果
+func evalBlockStatement(stmts []ast.Statement) object.Object {
 	var result object.Object
 	for _, statement := range stmts {
 		result = Eval(statement)
+		// 如果遇到了返回值 终止继续向下解析语句
+		// 由于这里需要能识别出 返回值 故必须要多出一个返回值类型的 object
+		if result.Type() == object.RETURN_VALUE_OBJ {
+			// 这里不对返回值进行解包 是因为 block 是可能嵌套的 为了保证程序按照正确的顺序返回
+			// 这里必须将返回值传递到上层
+			// 递归结束后 在最上层的 block 即可正确感知到应该在第一个 ReturnValue 处返回
+			return result
+		}
+	}
+	return result
+}
+
+// evalProgram 对程序进行求值 并最后对返回值进行解包 遇到返回值则马上返回 不再向下解析
+func evalProgram(stmts []ast.Statement) object.Object {
+	var result object.Object
+	for _, statement := range stmts {
+		result = Eval(statement)
+		// 如果遇到了返回值 终止继续向下解析语句
+		// 由于这里需要能识别出 返回值 故必须要多出一个返回值类型的 object
+		if retVal, ok := result.(*object.ReturnValue); ok {
+			// 因为 program 本质就是最顶层的 block
+			// 不存在更上层的 block 需要感知到 ReturnValue
+			// 故在这里直接解包 ReturnValue 拿到解包的值
+			return retVal.Value
+		}
 	}
 	return result
 }
