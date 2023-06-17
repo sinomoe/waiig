@@ -24,6 +24,8 @@ func Eval(node ast.Node) object.Object {
 		return evalStatements(v.Statements)
 	case *ast.ExpressionStatement:
 		return Eval(v.Expression)
+	case *ast.PrefixExpression:
+		return evalPrefixExpression(v.Operator, Eval(v.Right))
 	}
 	return nil
 }
@@ -41,4 +43,39 @@ func nativeBoolToBooleanObject(input bool) *object.Boolean {
 		return TRUE
 	}
 	return FALSE
+}
+
+// evalPrefixExpression 前缀表达式求值
+func evalPrefixExpression(operator string, right object.Object) object.Object {
+	switch operator {
+	case "!":
+		return evalBangOperatorExpression(right)
+	case "-":
+		return evalMinusPrefixOperatorExpression(right)
+	}
+	return nil
+}
+
+// evalBangOperatorExpression 求反表达式
+func evalBangOperatorExpression(right object.Object) object.Object {
+	switch right {
+	case TRUE:
+		return FALSE
+	case FALSE, NULL:
+		return TRUE
+	default:
+		return FALSE
+	}
+}
+
+// evalMinusPrefixOperatorExpression 负数表达式
+func evalMinusPrefixOperatorExpression(right object.Object) object.Object {
+	switch v := right.(type) {
+	case *object.Integer:
+		return &object.Integer{
+			Value: -v.Value,
+		}
+	default:
+		return NULL
+	}
 }
