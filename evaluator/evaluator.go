@@ -13,56 +13,63 @@ var (
 	FALSE = &object.Boolean{Value: false}
 )
 
-func Eval(node ast.Node) object.Object {
+func Eval(node ast.Node, env *object.Environment) object.Object {
 	switch v := node.(type) {
 	case *ast.IntegerLiteral:
 		return &object.Integer{Value: v.Value}
 	case *ast.BooleanLiteral:
 		return nativeBoolToBooleanObject(v.Value)
+	case *ast.Identifier:
+		return evalIdentifier(v, env)
 	case *ast.Program:
-		return evalProgram(v.Statements)
+		return evalProgram(v.Statements, env)
 	case *ast.ExpressionStatement:
-		return Eval(v.Expression)
+		return Eval(v.Expression, env)
 	case *ast.BlockStatement:
-		return evalBlockStatement(v.Statements)
+		return evalBlockStatement(v.Statements, env)
 	case *ast.ReturnStatement:
-		val := Eval(v.ReturnValue)
+		val := Eval(v.ReturnValue, env)
 		if isError(val) {
 			return val
 		}
 		return &object.ReturnValue{Value: val}
+	case *ast.LetStatement:
+		val := Eval(v.Value, env)
+		if isError(val) {
+			return val
+		}
+		env.Set(v.Name.Value, val)
 	case *ast.PrefixExpression:
-		val := Eval(v.Right)
+		val := Eval(v.Right, env)
 		if isError(val) {
 			return val
 		}
 		return evalPrefixExpression(v.Operator, val)
 	case *ast.InfixExpression:
-		lVal := Eval(v.Left)
+		lVal := Eval(v.Left, env)
 		if isError(lVal) {
 			return lVal
 		}
-		rVal := Eval(v.Right)
+		rVal := Eval(v.Right, env)
 		if isError(rVal) {
 			return rVal
 		}
 		return evalInfixExpression(v.Operator, lVal, rVal)
 	case *ast.IfExpression:
-		val := Eval(v.Condition)
+		val := Eval(v.Condition, env)
 		if isError(val) {
 			return val
 		}
-		return evalIfExpression(val, v.Consequence, v.Alternative)
-	default:
-		return NULL
+		return evalIfExpression(val, v.Consequence, v.Alternative, env)
 	}
+	return NULL
 }
 
 // evalBlockStatement 对多条语句求值,多条语句的求值结果为最后一条语句的求值结果
-func evalBlockStatement(stmts []ast.Statement) object.Object {
+func evalBlockStatement(stmts []ast.Statement, env *object.Environment) object.Object {
 	var result object.Object
 	for _, statement := range stmts {
-		result = Eval(statement)
+		result = Eval(statement, env)
 		// 求值的到解析错误则立刻返回
 		if result.Type() == object.ERROR_OBJ {
 			return result
@@ -80,10 +87,10 @@ func evalBlockStatement(stmts []ast.Statement) object.Object {
 }
 
 // evalProgram 对程序进行求值 并最后对返回值进行解包 遇到返回值则马上返回 不再向下解析
-func evalProgram(stmts []ast.Statement) object.Object {
+func evalProgram(stmts []ast.Statement, env *object.Environment) object.Object {
 	var result object.Object
 	for _, statement := range stmts {
-		result = Eval(statement)
+		result = Eval(statement, env)
 		switch result := result.(type) {
 		case *object.ReturnValue:
 			// 如果遇到了返回值 终止继续向下解析语句
@@ -201,14 +208,14 @@ func evalBooleanInfixExpression(operator string, left, right object.Object) obje
 	}
 }
 
-func evalIfExpression(condition object.Object, consequence, alternative *ast.BlockStatement) object.Object {
+func evalIfExpression(condition object.Object, consequence, alternative *ast.BlockStatement, env *object.Environment) object.Object {
 	if isTruthy(condition) {
-		return Eval(consequence)
+		return Eval(consequence, env)
 	}
 	if alternative == nil {
 		return NULL
 	}
-	return Eval(alternative)
+	return Eval(alternative, env)
 }
 
 func isTruthy(obj object.Object) bool {
@@ -237,4 +244,12 @@ func isError(obj object.Object) bool {
 		return obj.Type() == object.ERROR_OBJ
 	}
 	return false
+}
+
+func evalIdentifier(node *ast.Identifier, env *object.Environment) object.Object {
+	val, ok := env.Get(node.Value)
+	if !ok {
+		return newError("identifier not found: " + node.Value)
+	}
+	return val
 }
