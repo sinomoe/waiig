@@ -28,6 +28,12 @@ func (i *Integer) Type() ObjectType {
 	return INTEGER_OBJ
 }
 
+func NewInteger(val int64) *Integer {
+	return &Integer{
+		Value: val,
+	}
+}
+
 type Boolean struct {
 	Value bool
 }

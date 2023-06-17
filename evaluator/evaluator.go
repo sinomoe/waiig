@@ -26,8 +26,11 @@ func Eval(node ast.Node) object.Object {
 		return Eval(v.Expression)
 	case *ast.PrefixExpression:
 		return evalPrefixExpression(v.Operator, Eval(v.Right))
+	case *ast.InfixExpression:
+		return evalInfixExpression(v.Operator, Eval(v.Left), Eval(v.Right))
+	default:
+		return NULL
 	}
-	return nil
 }
 
 func evalStatements(stmts []ast.Statement) object.Object {
@@ -75,6 +78,60 @@ func evalMinusPrefixOperatorExpression(right object.Object) object.Object {
 		return &object.Integer{
 			Value: -v.Value,
 		}
+	default:
+		return NULL
+	}
+}
+
+// evalInfixExpression 求值中缀表达式
+func evalInfixExpression(operator string, left, right object.Object) object.Object {
+	switch {
+	case left.Type() == object.INTEGER_OBJ && right.Type() == object.INTEGER_OBJ:
+		return evalIntegerInfixExpression(operator, left, right)
+	case left.Type() == object.BOOLEAN_OBJ && right.Type() == object.BOOLEAN_OBJ:
+		return evalBooleanInfixExpression(operator, left, right)
+	default:
+		return NULL
+	}
+}
+
+func evalIntegerInfixExpression(operator string, left, right object.Object) object.Object {
+	var (
+		leftVal  = left.(*object.Integer).Value
+		rightVal = right.(*object.Integer).Value
+	)
+	switch operator {
+	case "+":
+		return object.NewInteger(leftVal + rightVal)
+	case "-":
+		return object.NewInteger(leftVal - rightVal)
+	case "*":
+		return object.NewInteger(leftVal * rightVal)
+	case "/":
+		return object.NewInteger(leftVal / rightVal)
+	case ">":
+		return nativeBoolToBooleanObject(leftVal > rightVal)
+	case "<":
+		return nativeBoolToBooleanObject(leftVal < rightVal)
+	case "==":
+		return nativeBoolToBooleanObject(leftVal == rightVal)
+	case "!=":
+		return nativeBoolToBooleanObject(leftVal != rightVal)
+	default:
+		return NULL
+	}
+}
+
+func evalBooleanInfixExpression(operator string, left, right object.Object) object.Object {
+	var (
+		leftVal  = left.(*object.Boolean).Value
+		rightVal = right.(*object.Boolean).Value
+	)
+	switch operator {
+	case "==":
+		return nativeBoolToBooleanObject(leftVal == rightVal)
+	case "!=":
+		return nativeBoolToBooleanObject(leftVal != rightVal)
 	default:
 		return NULL
 	}
