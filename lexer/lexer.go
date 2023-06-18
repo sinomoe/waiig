@@ -126,7 +126,7 @@ func isDigit(ch byte) bool {
 }
 
 func (l *Lexer) peekChar() byte {
-	if l.position > len(l.input) {
+	if l.readPosition >= len(l.input) {
 		return 0
 	}
 	return l.input[l.readPosition]

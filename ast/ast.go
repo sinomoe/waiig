@@ -108,9 +108,7 @@ func (bs *BlockStatement) String() string {
 	for _, stmt := range bs.Statements {
 		stmts = append(stmts, stmt.String())
 	}
-	out.WriteString("{ ")
 	out.WriteString(strings.Join(stmts, " "))
-	out.WriteString(" }")
 	return out.String()
 }
 

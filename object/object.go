@@ -1,6 +1,11 @@
 package object
 
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+	"monkey/ast"
+	"strings"
+)
 
 type ObjectType string
 
@@ -10,12 +15,13 @@ const (
 	NULL_OBJ         = "NULL"
 	RETURN_VALUE_OBJ = "RETURN_VALUE"
 	ERROR_OBJ        = "ERROR"
+	FUNCTION_OBJ     = "FUNCTION"
 )
 
 // Object 用来表示解释器中的值
 type Object interface {
 	Type() ObjectType
-	Inspect() string
+	Inspect() string // 用于 REPL 返回展示
 }
 
 type Integer struct {
@@ -82,4 +88,30 @@ func (e *Error) Type() ObjectType {
 
 func (e *Error) Inspect() string {
 	return "ERROR: " + e.Message
+}
+
+// Function 函数的值表示 一等公民
+type Function struct {
+	Parameters []*ast.Identifier   //继承自 AST 节点
+	Body       *ast.BlockStatement // 继承自 AST 节点
+	Env        *Environment        // 函数内部变量 可以实现闭包
+}
+
+func (f *Function) Type() ObjectType {
+	return FUNCTION_OBJ
+}
+
+func (f *Function) Inspect() string {
+	var out bytes.Buffer
+	params := []string{}
+	for _, p := range f.Parameters {
+		params = append(params, p.String())
+	}
+	out.WriteString("fn")
+	out.WriteString("(")
+	out.WriteString(strings.Join(params, ", "))
+	out.WriteString(") {\n")
+	out.WriteString(f.Body.String())
+	out.WriteString("\n}")
+	return out.String()
 }
