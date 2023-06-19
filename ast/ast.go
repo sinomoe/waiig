@@ -64,6 +64,23 @@ func (ls *LetStatement) String() string {
 	return out.String()
 }
 
+type AssignStatement struct {
+	Token token.Token // token.ASSIGN 词法单元
+	Name  *Identifier // 左侧标识符
+	Value Expression  // 右侧表达式、字面量
+}
+
+func (as *AssignStatement) statementNode()       {}
+func (as *AssignStatement) TokenLiteral() string { return as.Token.Literal }
+func (as *AssignStatement) String() string {
+	var out bytes.Buffer
+	out.WriteString(as.Name.String())
+	out.WriteString(" = ")
+	out.WriteString(as.Value.String())
+	out.WriteString(";")
+	return out.String()
+}
+
 // Identifier 标识符表达式
 type Identifier struct {
 	Token token.Token // token.IDENT 词法单元

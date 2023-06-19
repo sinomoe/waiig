@@ -40,11 +40,22 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		}
 		return &object.ReturnValue{Value: val}
 	case *ast.LetStatement:
+		_, ok := env.GetLocal(v.Name.Value)
+		if ok {
+			return newError("identifier exist: " + v.Name.Value)
+		}
 		val := Eval(v.Value, env)
 		if isError(val) {
 			return val
 		}
 		env.Set(v.Name.Value, val)
+	case *ast.AssignStatement:
+		val := Eval(v.Value, env)
+		if isError(val) {
+			return val
+		}
+		env.Assign(v.Name.Value, val)
+		return val
 	case *ast.PrefixExpression:
 		val := Eval(v.Right, env)
 		if isError(val) {
@@ -296,6 +307,9 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 	f, ok := fn.(*object.Function)
 	if !ok {
 		return newError("not a function: %s", fn.Type())
+	}
+	if len(args) != len(f.Parameters) {
+		return newError("args number mismatch, expect lenght: %d, but got: %d", len(f.Parameters), len(args))
 	}
 	env := object.NewEnclosedEnviroment(f.Env)
 	for i, param := range f.Parameters {

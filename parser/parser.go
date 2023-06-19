@@ -167,9 +167,15 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseLetStatement()
 	case token.RETURN:
 		return p.parseReturnStatement()
-	default:
-		return p.parseExpressionStatement()
+	case token.IDENT:
+		if p.peekTokenIs(token.LPAREN) {
+			return p.parseExpressionStatement()
+		}
+		if p.peekTokenIs(token.ASSIGN) {
+			return p.parseAssignStatement()
+		}
 	}
+	return p.parseExpressionStatement()
 }
 
 // parseLetStatement 解析 let 语句
@@ -184,6 +190,23 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 		return nil
 	}
 	p.nextToken() // curToken=表达式第一个 token
+	stmt.Value = p.parseExpression(LOWEST)
+	if p.peekTokenIs(token.SEMICOLON) { // 允许 let 语句后不带分号
+		p.nextToken()
+	}
+	return stmt
+}
+
+func (p *Parser) parseAssignStatement() *ast.AssignStatement {
+	identifier := p.parseIdentifier()
+	stmt := &ast.AssignStatement{
+		Name: identifier.(*ast.Identifier),
+	}
+	if !p.expectPeek(token.ASSIGN) {
+		return nil
+	}
+	stmt.Token = p.curToken
+	p.nextToken()
 	stmt.Value = p.parseExpression(LOWEST)
 	if p.peekTokenIs(token.SEMICOLON) { // 允许 let 语句后不带分号
 		p.nextToken()

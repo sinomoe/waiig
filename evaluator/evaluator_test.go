@@ -287,11 +287,32 @@ func TestFunctionApplication(t *testing.T) {
 }
 
 func TestClosures(t *testing.T) {
-	input := `
-    let newAdder = fn(x) {
-    	fn(y) { x + y };
-	};
-    let addTwo = newAdder(2);
-    addTwo(2);`
-	testIntegerObject(t, testEval(input), 4)
+	tests := []struct {
+		input    string
+		expected int64
+	}{
+		{`let newAdder = fn(x) {
+			fn(y) { x + y };
+		};
+		let addTwo = newAdder(2);
+		addTwo(2);`, 4},
+		{`let fib = fn() {
+			let a = 1;
+			let b = 1;
+			return fn() {
+				let c = a;
+				a = b;
+				b = b + c;
+				return b;
+			};
+		};
+		let f = fib();
+		f();
+		f();
+		f();
+		f()`, 8},
+	}
+	for _, tt := range tests {
+		testIntegerObject(t, testEval(tt.input), tt.expected)
+	}
 }
