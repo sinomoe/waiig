@@ -227,9 +227,9 @@ func (ie *IfExpression) String() string {
 
 // FunctionLiteral 函数字面量表达式节点
 type FunctionLiteral struct {
-	Token      token.Token
-	Parameters []*Identifier
-	Body       *BlockStatement
+	Token      token.Token     // fn 词法单元
+	Parameters []*Identifier   // 形参列表
+	Body       *BlockStatement // 语句块
 }
 
 func (fl *FunctionLiteral) expressionNode()      {}

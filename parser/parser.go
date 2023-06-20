@@ -17,14 +17,14 @@ type (
 
 const (
 	// 定义运算符优先级
-	_ int = iota
-	LOWEST
-	EQUALS      // ==
-	LESSGREATER // > or <
-	SUM         // +
-	PRODUCT     // *
-	PREFIX      // -X or !X
-	CALL        // myFunction(X)
+	_           int = iota
+	LOWEST          // 最低优先级定义为 1 也是有用意的, 遇到其他未定义优先级的 token, 则优先级都为 0
+	EQUALS          // ==
+	LESSGREATER     // > or <
+	SUM             // +
+	PRODUCT         // *
+	PREFIX          // -X or !X
+	CALL            // myFunction(X)
 )
 
 // precedences 中缀表达式优先级表
@@ -54,6 +54,7 @@ type Parser struct {
 func (p *Parser) registerPrefix(tokenType token.TokenType, fn prefixParseFn) {
 	p.prefixParseFns[tokenType] = fn
 }
+
 func (p *Parser) registerInfix(tokenType token.TokenType, fn infixParseFn) {
 	p.infixParseFns[tokenType] = fn
 }
@@ -88,6 +89,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(token.GT, p.parseInfixExpression)
 
 	p.registerInfix(token.LPAREN, p.parseCallExpression) // 解析函数调用,  把函数调用当作中缀表达式
+
 	// 读取两个词法单元，以设置curToken和peekToken
 	p.nextToken() // curToken=nil peekToken=第一个 token
 	p.nextToken() // curToken=第一个词法单元 peekToken=第二个词法单元
@@ -111,16 +113,16 @@ func (p *Parser) expectPeek(t token.TokenType) bool {
 	if p.peekTokenIs(t) {
 		p.nextToken()
 		return true
-	} else {
-		p.peekError(t)
-		return false
 	}
+	p.peekError(t)
+	return false
 }
 
 func (p *Parser) Errors() []string {
 	return p.errors
 }
 
+// peekPrecedence 下一个词法单元的优先级
 func (p *Parser) peekPrecedence() int {
 	if p, ok := precedences[p.peekToken.Type]; ok {
 		return p
@@ -128,6 +130,7 @@ func (p *Parser) peekPrecedence() int {
 	return LOWEST
 }
 
+// curPrecedence 当前词法单元的优先级
 func (p *Parser) curPrecedence() int {
 	if p, ok := precedences[p.curToken.Type]; ok {
 		return p
@@ -155,12 +158,15 @@ func (p *Parser) ParseProgram() *ast.Program {
 		if stmt != nil {
 			program.Statements = append(program.Statements, stmt)
 		}
+		// parseStatement 后当前词元为当前语句的最后一个词元
+		// 调用 nextToken 将当前词元指向下调语句的第一个词元
 		p.nextToken()
 	}
 	return program
 }
 
 // parseStatement 解析语句
+// 解析语句时当前词元指向语句的第一个词元 返回时当前词元为语句的最后一个词元
 func (p *Parser) parseStatement() ast.Statement {
 	switch p.curToken.Type {
 	case token.LET:
@@ -179,6 +185,7 @@ func (p *Parser) parseStatement() ast.Statement {
 }
 
 // parseLetStatement 解析 let 语句
+// let <identifier> = <expression>;
 func (p *Parser) parseLetStatement() *ast.LetStatement {
 	stmt := &ast.LetStatement{Token: p.curToken} // 初始化 let 语句节点
 	// let 语句前两个 token 一定是 IDENT 和 ASSIGN
@@ -197,6 +204,8 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	return stmt
 }
 
+// parseAssignStatement 解析赋值语句
+// <identifier> = <expression>;
 func (p *Parser) parseAssignStatement() *ast.AssignStatement {
 	identifier := p.parseIdentifier()
 	stmt := &ast.AssignStatement{
@@ -215,6 +224,7 @@ func (p *Parser) parseAssignStatement() *ast.AssignStatement {
 }
 
 // parseReturnStatement 解析 return 语句
+// return <expression>;
 func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	stmt := &ast.ReturnStatement{Token: p.curToken}
 	// 指向 return 的下一个 token
@@ -236,7 +246,9 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	return stmt
 }
 
-// parseExpression 表达式解析函数, 调用时 curToken 是表达式第一个 token, 返回后 curToken 是表达式最后一个 token
+// parseExpression 表达式解析函数
+// 调用时 curToken 是表达式第一个 token, 返回后 curToken 是表达式最后一个 token
+// 处理表达式时不要吞掉句末的 ; 词元, 吞掉 ; 词元统一交给语句解析式处理, 这里对应的是 parseExpressionStatement
 func (p *Parser) parseExpression(precedence int) ast.Expression {
 	prefix := p.prefixParseFns[p.curToken.Type]
 	if prefix == nil {
@@ -244,15 +256,21 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 		return nil
 	}
 	leftExp := prefix()
-	for !p.peekTokenIs(token.SEMICOLON) && precedence < p.peekPrecedence() {
+	// 以下循环结构要求
+	// 前缀表达式解析函数: 调用时 curToken=表达式第一个 token, 返回时 curToken=表达式最后一个 token
+	// 中缀表达式解析函数: 调用时 curToken=中缀运算符, 返回时 curToken=表达式最后一个 token
+	// precedence 为左边运算符的结合力
+	// peekPrecedence 为右边运算符的结合力
+	// 只有右边的结合力强于左边时 将左表达式做为中缀表达式左节点
+	for !p.peekTokenIs(token.SEMICOLON) && precedence < p.peekPrecedence() { // 由于优先级可以一直变大所以需要向右循环
 		infix := p.infixParseFns[p.peekToken.Type]
 		if infix == nil {
 			return leftExp
 		}
-		p.nextToken()
-		leftExp = infix(leftExp)
+		p.nextToken()            // curToken 转移到中缀运算符
+		leftExp = infix(leftExp) // left 变成后一个运算符的左节点
 	}
-	return leftExp
+	return leftExp // left 变成前一个预算符的右节点
 }
 
 // parseIdentifier 标识符表达式解析函数
@@ -282,6 +300,8 @@ func (p *Parser) parseBooleanLiteral() ast.Expression {
 }
 
 // parsePrefixExpression 前缀表达式解析函数
+// -<expression>
+// !<expression>
 func (p *Parser) parsePrefixExpression() ast.Expression {
 	pe := &ast.PrefixExpression{
 		Token:    p.curToken,
@@ -292,7 +312,14 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 	return pe
 }
 
-// parseInfixExpression 前缀表达式解析函数
+// parseInfixExpression 中缀表达式解析函数
+// <expression> + <expression>
+// <expression> - <expression>
+// <expression> * <expression>
+// <expression> / <expression>
+// <expression> == <expression>
+// <expression> > <expression>
+// <expression> < <expression>
 func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	ie := &ast.InfixExpression{
 		Token:    p.curToken,
@@ -307,6 +334,7 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 }
 
 // parseGroupedExpression 解析分组(括号)表达式 (a+b)
+// (<expression>)
 func (p *Parser) parseGroupedExpression() ast.Expression {
 	p.nextToken()
 	exp := p.parseExpression(LOWEST)
@@ -317,6 +345,7 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 }
 
 // parseIfExpression 解析 if 表达式
+// if (<expression>) <blockstatement> else <blockstatement>
 func (p *Parser) parseIfExpression() ast.Expression {
 	ie := &ast.IfExpression{
 		Token: p.curToken,
@@ -345,6 +374,7 @@ func (p *Parser) parseIfExpression() ast.Expression {
 }
 
 // parseBlockStatement 解析语句块 {}
+// { <statement>;... }
 func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 	bs := &ast.BlockStatement{
 		Token:      p.curToken,
@@ -359,6 +389,8 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 }
 
 // parseFunctionLiteral 函数字面量解析函数
+// fn(<identifier>,...) <blockstatement>
+// fn() <blockstatement>
 func (p *Parser) parseFunctionLiteral() ast.Expression {
 	fl := &ast.FunctionLiteral{
 		Token:      p.curToken,
@@ -400,9 +432,11 @@ func (p *Parser) parseFunctionParameters() []*ast.Identifier {
 }
 
 // parseCallExpression 函数调用解析函数, 函数调用是一种中缀表达式, 左边的表达式是函数
+// <functionLiteral>(<expression>,...)
+// <identifier>(<expression>,...)
 func (p *Parser) parseCallExpression(left ast.Expression) ast.Expression {
 	return &ast.CallExpression{
-		Token:     p.curToken,
+		Token:     p.curToken, // ( 词元
 		Function:  left,
 		Arguments: p.parseCallExpressionArguments(),
 	}
