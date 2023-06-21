@@ -25,6 +25,7 @@ const (
 	PRODUCT         // *
 	PREFIX          // -X or !X
 	CALL            // myFunction(X)
+	INDEX           // a[i]
 )
 
 // precedences 中缀表达式优先级表
@@ -38,6 +39,7 @@ var precedences = map[token.TokenType]int{
 	token.SLASH:    PRODUCT,
 	token.ASTERISK: PRODUCT,
 	token.LPAREN:   CALL,
+	token.LBRACKET: INDEX,
 }
 
 // Parser 是语法解析器，负责将词法单元解析为 AST
@@ -66,7 +68,7 @@ func New(l *lexer.Lexer) *Parser {
 	}
 	// 初始化前缀解析函数，标识符和字面量部署运算符，属于特殊的前缀解析函数
 	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
-	p.registerPrefix(token.IDENT, p.parseIdentifier) // 这四个解析函数相当于递归的 base case，因为他们的解析还书里不包含对 parseExpression 的递归调用
+	p.registerPrefix(token.IDENT, p.parseIdentifier) // 这五个解析函数相当于递归的 base case，因为他们的解析还书里不包含对 parseExpression 的递归调用
 	p.registerPrefix(token.INT, p.parseIntegerLiteral)
 	p.registerPrefix(token.STRING, p.parseStringLiteral)
 	p.registerPrefix(token.FALSE, p.parseBooleanLiteral)
@@ -77,6 +79,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.LPAREN, p.parseGroupedExpression) // 解析括号表达式
 	p.registerPrefix(token.IF, p.parseIfExpression)          // 解析 if 表达式
 	p.registerPrefix(token.FUNCTION, p.parseFunctionLiteral)
+	p.registerPrefix(token.LBRACKET, p.parseArrayLiteral) // 解析数组字面量
 
 	// 初始化中缀表达式解释函数
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
@@ -89,7 +92,8 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(token.LT, p.parseInfixExpression)
 	p.registerInfix(token.GT, p.parseInfixExpression)
 
-	p.registerInfix(token.LPAREN, p.parseCallExpression) // 解析函数调用,  把函数调用当作中缀表达式
+	p.registerInfix(token.LPAREN, p.parseCallExpression)    // 解析函数调用,  把函数调用当作中缀表达式
+	p.registerInfix(token.LBRACKET, p.parseIndexExpression) // 解析数组索引
 
 	// 读取两个词法单元，以设置curToken和peekToken
 	p.nextToken() // curToken=nil peekToken=第一个 token
@@ -468,4 +472,40 @@ func (p *Parser) parseCallExpressionArguments() []ast.Expression {
 		return nil
 	}
 	return args
+}
+
+// parseArrayLiteral 解析数组字面量
+func (p *Parser) parseArrayLiteral() ast.Expression {
+	al := &ast.ArrayLiteral{
+		Token:    p.curToken,
+		Elements: []ast.Expression{},
+	}
+	p.nextToken()
+	if p.curTokenIs(token.RBRACKET) {
+		return al
+	}
+	al.Elements = append(al.Elements, p.parseExpression(LOWEST))
+
+	for p.peekTokenIs(token.COMMA) {
+		p.nextToken() // curToken=COMMA
+		p.nextToken() // curToken=表达式第一个 token
+		al.Elements = append(al.Elements, p.parseExpression(LOWEST))
+	}
+	if !p.expectPeek(token.RBRACKET) {
+		return nil
+	}
+	return al
+}
+
+func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
+	ie := &ast.IndexExpression{
+		Token: p.curToken,
+		Left:  left,
+	}
+	p.nextToken()
+	ie.Index = p.parseExpression(LOWEST)
+	if !p.expectPeek(token.RBRACKET) {
+		return nil
+	}
+	return ie
 }

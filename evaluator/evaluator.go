@@ -29,6 +29,18 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			Body:       v.Body,
 			Env:        env, // 解析函数字面量时保存申明的上下文 相当于创建了闭包
 		}
+	case *ast.ArrayLiteral:
+		return evalArrayLiteral(v.Elements, env)
+	case *ast.IndexExpression:
+		left := Eval(v.Left, env)
+		if isError(left) {
+			return left
+		}
+		index := Eval(v.Index, env)
+		if isError(index) {
+			return index
+		}
+		return evalIndexExpression(left, index, env)
 	case *ast.Program:
 		return evalProgram(v.Statements, env)
 	case *ast.ExpressionStatement:
@@ -362,4 +374,30 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 		return val
 	}
 	return newError("not a function: %s", fn.Type())
+}
+
+func evalArrayLiteral(exps []ast.Expression, env *object.Environment) object.Object {
+	arr := object.Array{}
+	for _, exp := range exps {
+		a := Eval(exp, env)
+		if isError(a) {
+			return a
+		}
+		arr = append(arr, a)
+	}
+	return arr
+}
+
+func evalIndexExpression(left, index object.Object, env *object.Environment) object.Object {
+	switch {
+	case left.Type() == object.ARRAY_OBJ && index.Type() == object.INTEGER_OBJ:
+		idx := index.(*object.Integer)
+		arr := left.(object.Array)
+		if idx.Value >= int64(len(arr)) || idx.Value < 0 {
+			return NULL
+		}
+		return arr[idx.Value]
+	default:
+		return newError("index operator not supported: %s", left.Type())
+	}
 }

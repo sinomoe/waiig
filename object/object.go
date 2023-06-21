@@ -18,6 +18,7 @@ const (
 	ERROR_OBJ        = "ERROR"
 	FUNCTION_OBJ     = "FUNCTION"
 	BULTIN_OBJ       = "BUILTIN"
+	ARRAY_OBJ        = "ARRAY"
 )
 
 // Object 用来表示解释器中的值
@@ -138,4 +139,22 @@ func (bf BuiltinFunction) Type() ObjectType {
 
 func (bf BuiltinFunction) Inspect() string {
 	return "builtin function"
+}
+
+type Array []Object
+
+func (a Array) Type() ObjectType {
+	return ARRAY_OBJ
+}
+
+func (a Array) Inspect() string {
+	var out bytes.Buffer
+	elements := []string{}
+	for _, e := range a {
+		elements = append(elements, e.Inspect())
+	}
+	out.WriteString("[")
+	out.WriteString(strings.Join(elements, ", "))
+	out.WriteString("]")
+	return out.String()
 }

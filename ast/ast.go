@@ -64,6 +64,7 @@ func (ls *LetStatement) String() string {
 	return out.String()
 }
 
+// AssignStatement 赋值语句节点
 type AssignStatement struct {
 	Token token.Token // token.ASSIGN 词法单元
 	Name  *Identifier // 左侧标识符
@@ -279,4 +280,44 @@ func (ce *CallExpression) String() string {
 	out.WriteString(strings.Join(args, ", "))
 	out.WriteString(")")
 	return out.String()
+}
+
+// ArrayLiteral 数组字面量节点
+type ArrayLiteral struct {
+	Token    token.Token
+	Elements []Expression
+}
+
+func (al *ArrayLiteral) expressionNode()      {}
+func (al *ArrayLiteral) TokenLiteral() string { return al.Token.Literal }
+func (al *ArrayLiteral) String() string {
+	var buf bytes.Buffer
+	var elms []string
+	for _, elm := range al.Elements {
+		elms = append(elms, elm.String())
+	}
+	buf.WriteByte('[')
+	buf.WriteString(strings.Join(elms, ", "))
+	buf.WriteByte(']')
+	return buf.String()
+}
+
+// IndexExpression 数组索引表达值节点
+type IndexExpression struct {
+	Token token.Token
+	Left  Expression
+	Index Expression
+}
+
+func (ie *IndexExpression) expressionNode()      {}
+func (ie *IndexExpression) TokenLiteral() string { return ie.Token.Literal }
+func (ie *IndexExpression) String() string {
+	var buf bytes.Buffer
+	buf.WriteByte('(')
+	buf.WriteString(ie.Left.String())
+	buf.WriteByte('[')
+	buf.WriteString(ie.Index.String())
+	buf.WriteByte(']')
+	buf.WriteByte(')')
+	return buf.String()
 }

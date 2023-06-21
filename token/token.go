@@ -28,6 +28,8 @@ var tokenTypeStringMap = map[TokenType]string{
 	RPAREN:    ")",
 	LBRACE:    "{",
 	RBRACE:    "}",
+	LBRACKET:  "[",
+	RBRACKET:  "]",
 	FUNCTION:  "FUNCTION",
 	LET:       "LET",
 	TRUE:      "TRUE",
@@ -70,6 +72,8 @@ const (
 	RPAREN
 	LBRACE
 	RBRACE
+	LBRACKET
+	RBRACKET
 
 	// 关键字
 	FUNCTION
