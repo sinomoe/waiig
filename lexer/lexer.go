@@ -1,6 +1,9 @@
 package lexer
 
-import "monkey/token"
+import (
+	"bytes"
+	"monkey/token"
+)
 
 type Lexer struct {
 	input        string
@@ -70,6 +73,9 @@ func (l *Lexer) NextToken() token.Token {
 		tok = newToken(token.LBRACE, l.ch)
 	case '}':
 		tok = newToken(token.RBRACE, l.ch)
+	case '"':
+		tok.Type = token.STRING
+		tok.Literal = l.readString()
 	case 0:
 		tok = newToken(token.EOF)
 	default:
@@ -123,6 +129,25 @@ func (l *Lexer) readNumber() string {
 
 func isDigit(ch byte) bool {
 	return '0' <= ch && ch <= '9'
+}
+
+func (l *Lexer) readString() string {
+	var buf bytes.Buffer
+	for {
+		l.readChar()
+		// 支持转义符
+		if l.ch == '\\' && l.peekChar() == '"' {
+			buf.WriteByte('"')
+			l.readChar()
+			continue
+		}
+		// 遇到反引号结束
+		if l.ch == '"' || l.ch == 0 {
+			break
+		}
+		buf.WriteByte(l.ch)
+	}
+	return buf.String()
 }
 
 func (l *Lexer) peekChar() byte {

@@ -11,6 +11,7 @@ var tokenTypeStringMap = map[TokenType]string{
 	EOF:       "EOF",
 	IDENT:     "IDENT",
 	INT:       "INT",
+	STRING:    "STRING",
 	ASSIGN:    "=",
 	PLUS:      "+",
 	MINUS:     "-",
@@ -48,6 +49,7 @@ const (
 	// 标识符+字面量
 	IDENT // add, foobar, x, y, ...
 	INT   // 1343456
+	STRING
 
 	// 运算符
 	ASSIGN

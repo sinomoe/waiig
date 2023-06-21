@@ -68,6 +68,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
 	p.registerPrefix(token.IDENT, p.parseIdentifier) // 这四个解析函数相当于递归的 base case，因为他们的解析还书里不包含对 parseExpression 的递归调用
 	p.registerPrefix(token.INT, p.parseIntegerLiteral)
+	p.registerPrefix(token.STRING, p.parseStringLiteral)
 	p.registerPrefix(token.FALSE, p.parseBooleanLiteral)
 	p.registerPrefix(token.TRUE, p.parseBooleanLiteral)
 
@@ -296,6 +297,14 @@ func (p *Parser) parseBooleanLiteral() ast.Expression {
 	return &ast.BooleanLiteral{
 		Token: p.curToken,
 		Value: p.curTokenIs(token.TRUE),
+	}
+}
+
+// parseStringLiteral 字符串字面量解析函数
+func (p *Parser) parseStringLiteral() ast.Expression {
+	return &ast.StringLiteral{
+		Token: p.curToken,
+		Value: p.curToken.Literal,
 	}
 }
 
