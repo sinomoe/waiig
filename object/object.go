@@ -17,6 +17,7 @@ const (
 	RETURN_VALUE_OBJ = "RETURN_VALUE"
 	ERROR_OBJ        = "ERROR"
 	FUNCTION_OBJ     = "FUNCTION"
+	BULTIN_OBJ       = "BUILTIN"
 )
 
 // Object 用来表示解释器中的值
@@ -127,4 +128,14 @@ func (f *Function) Inspect() string {
 	out.WriteString(f.Body.String())
 	out.WriteString("\n}")
 	return out.String()
+}
+
+type BuiltinFunction func(args ...Object) Object
+
+func (bf BuiltinFunction) Type() ObjectType {
+	return BULTIN_OBJ
+}
+
+func (bf BuiltinFunction) Inspect() string {
+	return "builtin function"
 }

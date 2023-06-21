@@ -298,10 +298,14 @@ func isError(obj object.Object) bool {
 // 实现方式是从作用域中寻找标识符的值 不存在值则抛出求值错误
 func evalIdentifier(node *ast.Identifier, env *object.Environment) object.Object {
 	val, ok := env.Get(node.Value)
-	if !ok {
-		return newError("identifier not found: " + node.Value)
+	if ok {
+		return val
 	}
-	return val
+	builtin, ok := builtins[node.Value]
+	if ok {
+		return builtin
+	}
+	return newError("identifier not found: " + node.Value)
 }
 
 // evalExpressions 对多条表达式求值
@@ -325,35 +329,37 @@ func evalExpressions(exprs []ast.Expression, env *object.Environment) []object.O
 // 接着将实参绑定到新的作用域中
 // 最后使用新的作用域对函数的 body(block statement) 求值
 func applyFunction(fn object.Object, args []object.Object) object.Object {
-	f, ok := fn.(*object.Function)
-	if !ok {
-		return newError("not a function: %s", fn.Type())
+	switch f := fn.(type) {
+	case object.BuiltinFunction:
+		return f(args...)
+	case *object.Function:
+		if len(args) != len(f.Parameters) {
+			return newError("args number mismatch, expect lenght: %d, but got: %d", len(f.Parameters), len(args))
+		}
+		env := object.NewEnclosedEnviroment(f.Env)
+		for i, param := range f.Parameters {
+			env.Set(param.String(), args[i])
+		}
+		val := Eval(f.Body, env)
+		// 重要：函数调用后应该返回一个解包后的值
+		// 这里不进行解包会导致这个 ReturnValue 向上冒泡
+		// 从而导致上层调用异常提前返回
+		//
+		// (因为设计 ReturnValue 这个类型的初衷是为了感知到多条 statment 执行时该何时返回
+		// 以及避免 return 语句下的语句被执行 所以我们在 BlockStatement 和 Program 等
+		// 涉及多条 statement 执行的地方都对 ReturnValue 进行了判断，并将 ReturnValue
+		// 类型保留继续上抛)
+		//
+		// 直到遇到函数调用的边界就将 ReturnValue 解包得到内层值
+		// 这是因为函数内的 return 不应该直接导致更上层函数的退出
+		// 求值最顶层的语句 Program.Statements 时也解包 ReturnValue 的原因是
+		// 整个程序的返回值应该是一个具体类型的值 而不是包装后的返回值
+		// 假如不考虑程序的返回值 那么对 Program.Statements 求值时不解包 ReturnValue
+		// 也是可以的 具体操作需要看对语言的行为怎么进行定义
+		if retVal, ok := val.(*object.ReturnValue); ok {
+			return retVal.Value
+		}
+		return val
 	}
-	if len(args) != len(f.Parameters) {
-		return newError("args number mismatch, expect lenght: %d, but got: %d", len(f.Parameters), len(args))
-	}
-	env := object.NewEnclosedEnviroment(f.Env)
-	for i, param := range f.Parameters {
-		env.Set(param.String(), args[i])
-	}
-	val := Eval(f.Body, env)
-	// 重要：函数调用后应该返回一个解包后的值
-	// 这里不进行解包会导致这个 ReturnValue 向上冒泡
-	// 从而导致上层调用异常提前返回
-	//
-	// (因为设计 ReturnValue 这个类型的初衷是为了感知到多条 statment 执行时该何时返回
-	// 以及避免 return 语句下的语句被执行 所以我们在 BlockStatement 和 Program 等
-	// 涉及多条 statement 执行的地方都对 ReturnValue 进行了判断，并将 ReturnValue
-	// 类型保留继续上抛)
-	//
-	// 直到遇到函数调用的边界就将 ReturnValue 解包得到内层值
-	// 这是因为函数内的 return 不应该直接导致更上层函数的退出
-	// 求值最顶层的语句 Program.Statements 时也解包 ReturnValue 的原因是
-	// 整个程序的返回值应该是一个具体类型的值 而不是包装后的返回值
-	// 假如不考虑程序的返回值 那么对 Program.Statements 求值时不解包 ReturnValue
-	// 也是可以的 具体操作需要看对语言的行为怎么进行定义
-	if retVal, ok := val.(*object.ReturnValue); ok {
-		return retVal.Value
-	}
-	return val
+	return newError("not a function: %s", fn.Type())
 }
