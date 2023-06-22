@@ -24,6 +24,7 @@ var tokenTypeStringMap = map[TokenType]string{
 	NOT_EQ:    "!=",
 	COMMA:     ",",
 	SEMICOLON: ";",
+	COLON:     ":",
 	LPAREN:    "(",
 	RPAREN:    ")",
 	LBRACE:    "{",
@@ -68,6 +69,7 @@ const (
 	// 分隔符
 	COMMA
 	SEMICOLON
+	COLON
 	LPAREN
 	RPAREN
 	LBRACE

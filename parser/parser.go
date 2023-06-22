@@ -80,6 +80,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.IF, p.parseIfExpression)          // 解析 if 表达式
 	p.registerPrefix(token.FUNCTION, p.parseFunctionLiteral)
 	p.registerPrefix(token.LBRACKET, p.parseArrayLiteral) // 解析数组字面量
+	p.registerPrefix(token.LBRACE, p.parseHashLiteral)    // 解析哈希表字面量
 
 	// 初始化中缀表达式解释函数
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
@@ -508,4 +509,47 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 		return nil
 	}
 	return ie
+}
+
+func (p *Parser) parseHashLiteral() ast.Expression {
+	hl := &ast.HashLiteral{
+		Token: p.curToken,
+		Pairs: map[ast.Expression]ast.Expression{},
+	}
+	p.nextToken()
+	if p.curTokenIs(token.RBRACE) {
+		return hl
+	}
+
+	key ,val, ok := p.parseKeyValPair()
+	if !ok {
+		return nil
+	}
+	hl.Pairs[key] = val
+
+	for p.peekTokenIs(token.COMMA) {
+		p.nextToken()
+		p.nextToken()
+		key ,val, ok = p.parseKeyValPair()
+		if !ok {
+			return nil
+		}
+		hl.Pairs[key] = val
+	}
+
+	if !p.expectPeek(token.RBRACE) {
+		return nil
+	}
+	return hl
+}
+
+func (p *Parser) parseKeyValPair() (key, val ast.Expression, ok bool) {
+	key = p.parseExpression(LOWEST)
+	if !p.expectPeek(token.COLON) {
+		return
+	}
+	p.nextToken()
+	val = p.parseExpression(LOWEST)
+	ok = true
+	return
 }
