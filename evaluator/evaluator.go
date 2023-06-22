@@ -443,7 +443,39 @@ func evalHashLiteral(pairs map[ast.Expression]ast.Expression, env *object.Enviro
 func evalAssignExpression(left ast.Expression, val object.Object, env *object.Environment) object.Object {
 	switch v := left.(type) {
 	case *ast.Identifier:
+		// 对标识符赋值
 		return env.Assign(v.Value, val)
+	case *ast.IndexExpression:
+		index := Eval(v.Index, env)
+		if isError(index) {
+			return index
+		}
+		left := Eval(v.Left, env)
+		if isError(left) {
+			return left
+		}
+		switch {
+		case left.Type() == object.ARRAY_OBJ && index.Type() == object.INTEGER_OBJ:
+			// 对数组赋值
+			arr := left.(object.Array)
+			idx := index.(*object.Integer)
+			if idx.Value >= int64(len(arr)) {
+				return NULL
+			}
+			arr[idx.Value] = val
+			return val
+		case left.Type() == object.HASH_OBJ:
+			// 对 map 赋值
+			hash := left.(*object.Hash)
+			idx := index.(object.Hashable)
+			hash.Pairs[idx.HashKey()] = object.HashPair{
+				Key:   index,
+				Value: val,
+			}
+			return val
+		default:
+			return newError("index operator not supported: %s", left.Type())
+		}
 	}
 	return newError("unable to assign Object: %s to expression", val.Type())
 }

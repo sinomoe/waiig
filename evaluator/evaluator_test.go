@@ -630,6 +630,8 @@ func TestAssignExpressions(t *testing.T) {
 		{"let a = 5; a = 10; a;", 10},
 		{"let a = 5; let b = 1; a = b = 10; a;", 10},
 		{"let a = 5; let b = 1; a = b = 10; b;", 10},
+		{"let a = {}; a[1] = 10; a[1];", 10},
+		{"let a = [0,1,2]; a[1] = 10; a[1];", 10},
 	}
 	for _, tt := range tests {
 		testIntegerObject(t, testEval(tt.input), tt.expected)
