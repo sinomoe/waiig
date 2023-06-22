@@ -64,21 +64,22 @@ func (ls *LetStatement) String() string {
 	return out.String()
 }
 
-// AssignStatement 赋值语句节点
-type AssignStatement struct {
+// AssignExpression 赋值表达式节点
+type AssignExpression struct {
 	Token token.Token // token.ASSIGN 词法单元
-	Name  *Identifier // 左侧标识符
+	Left  Expression  // 左侧标识符、索引表达式
 	Value Expression  // 右侧表达式、字面量
 }
 
-func (as *AssignStatement) statementNode()       {}
-func (as *AssignStatement) TokenLiteral() string { return as.Token.Literal }
-func (as *AssignStatement) String() string {
+func (ae *AssignExpression) expressionNode()      {}
+func (ae *AssignExpression) TokenLiteral() string { return ae.Token.Literal }
+func (ae *AssignExpression) String() string {
 	var out bytes.Buffer
-	out.WriteString(as.Name.String())
-	out.WriteString(" = ")
-	out.WriteString(as.Value.String())
-	out.WriteString(";")
+	out.WriteByte('(')
+	out.WriteString(ae.Left.String())
+	out.WriteString("=")
+	out.WriteString(ae.Value.String())
+	out.WriteByte(')')
 	return out.String()
 }
 

@@ -65,13 +65,12 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			return val
 		}
 		env.Set(v.Name.Value, val)
-	case *ast.AssignStatement:
+	case *ast.AssignExpression:
 		val := Eval(v.Value, env)
 		if isError(val) {
 			return val
 		}
-		env.Assign(v.Name.Value, val)
-		return val
+		return evalAssignExpression(v.Left, val, env)
 	case *ast.PrefixExpression:
 		val := Eval(v.Right, env)
 		if isError(val) {
@@ -439,4 +438,12 @@ func evalHashLiteral(pairs map[ast.Expression]ast.Expression, env *object.Enviro
 		}
 	}
 	return hash
+}
+
+func evalAssignExpression(left ast.Expression, val object.Object, env *object.Environment) object.Object {
+	switch v := left.(type) {
+	case *ast.Identifier:
+		return env.Assign(v.Value, val)
+	}
+	return newError("unable to assign Object: %s to expression", val.Type())
 }

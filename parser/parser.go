@@ -17,8 +17,13 @@ type (
 
 const (
 	// 定义运算符优先级
+	// 运算符的左结合力一定等于如下优先级
+	// 右结合力在中缀解析函数中制定，一般也等于如下优先级
+	// 但是也有特殊情况，比如赋值运算符的右结合力不等于左结合力
 	_           int = iota
 	LOWEST          // 最低优先级定义为 1 也是有用意的, 遇到其他未定义优先级的 token, 则优先级都为 0
+	_               // 赋值表达式左右结合力不同，这里空一个保证赋值运算符优先级总高于 	LOWEST          // 最低优先级定义为 1 也是有用意的, 遇到其他未定义优先级的 token, 则优先级都为 0
+	ASSIGN          // =
 	EQUALS          // ==
 	LESSGREATER     // > or <
 	SUM             // +
@@ -30,6 +35,7 @@ const (
 
 // precedences 中缀表达式优先级表
 var precedences = map[token.TokenType]int{
+	token.ASSIGN:   ASSIGN,
 	token.EQ:       EQUALS,
 	token.NOT_EQ:   EQUALS,
 	token.LT:       LESSGREATER,
@@ -84,6 +90,7 @@ func New(l *lexer.Lexer) *Parser {
 
 	// 初始化中缀表达式解释函数
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
+	p.registerInfix(token.ASSIGN, p.parseAssignExpression) // 解析赋值表达式
 	p.registerInfix(token.PLUS, p.parseInfixExpression)
 	p.registerInfix(token.MINUS, p.parseInfixExpression)
 	p.registerInfix(token.SLASH, p.parseInfixExpression)
@@ -179,13 +186,6 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseLetStatement()
 	case token.RETURN:
 		return p.parseReturnStatement()
-	case token.IDENT:
-		if p.peekTokenIs(token.LPAREN) {
-			return p.parseExpressionStatement()
-		}
-		if p.peekTokenIs(token.ASSIGN) {
-			return p.parseAssignStatement()
-		}
 	}
 	return p.parseExpressionStatement()
 }
@@ -203,25 +203,6 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 		return nil
 	}
 	p.nextToken() // curToken=表达式第一个 token
-	stmt.Value = p.parseExpression(LOWEST)
-	if p.peekTokenIs(token.SEMICOLON) { // 允许 let 语句后不带分号
-		p.nextToken()
-	}
-	return stmt
-}
-
-// parseAssignStatement 解析赋值语句
-// <identifier> = <expression>;
-func (p *Parser) parseAssignStatement() *ast.AssignStatement {
-	identifier := p.parseIdentifier()
-	stmt := &ast.AssignStatement{
-		Name: identifier.(*ast.Identifier),
-	}
-	if !p.expectPeek(token.ASSIGN) {
-		return nil
-	}
-	stmt.Token = p.curToken
-	p.nextToken()
 	stmt.Value = p.parseExpression(LOWEST)
 	if p.peekTokenIs(token.SEMICOLON) { // 允许 let 语句后不带分号
 		p.nextToken()
@@ -521,7 +502,7 @@ func (p *Parser) parseHashLiteral() ast.Expression {
 		return hl
 	}
 
-	key ,val, ok := p.parseKeyValPair()
+	key, val, ok := p.parseKeyValPair()
 	if !ok {
 		return nil
 	}
@@ -530,7 +511,7 @@ func (p *Parser) parseHashLiteral() ast.Expression {
 	for p.peekTokenIs(token.COMMA) {
 		p.nextToken()
 		p.nextToken()
-		key ,val, ok = p.parseKeyValPair()
+		key, val, ok = p.parseKeyValPair()
 		if !ok {
 			return nil
 		}
@@ -552,4 +533,18 @@ func (p *Parser) parseKeyValPair() (key, val ast.Expression, ok bool) {
 	val = p.parseExpression(LOWEST)
 	ok = true
 	return
+}
+
+// parseAssignExpression 赋值表达式解析函数
+// <identifier> = <expression>
+// <expression> = <identifier> = <expression>
+func (p *Parser) parseAssignExpression(left ast.Expression) ast.Expression {
+	ae := &ast.AssignExpression{
+		Token: p.curToken,
+		Left:  left,
+	}
+	p.nextToken()
+	// 降低 = 的右结合力 保证连等赋值时 从右往左赋值
+	ae.Value = p.parseExpression(ASSIGN - 1)
+	return ae
 }
