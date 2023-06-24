@@ -1,5 +1,7 @@
 package token
 
+import "strings"
+
 type TokenType byte
 
 func (t TokenType) String() string {
@@ -11,6 +13,7 @@ var tokenTypeStringMap = map[TokenType]string{
 	EOF:       "EOF",
 	IDENT:     "IDENT",
 	INT:       "INT",
+	FLOAT:     "FLOAT",
 	STRING:    "STRING",
 	ASSIGN:    "=",
 	PLUS:      "+",
@@ -22,6 +25,7 @@ var tokenTypeStringMap = map[TokenType]string{
 	GT:        ">",
 	EQ:        "==",
 	NOT_EQ:    "!=",
+	DOT:       ".",
 	COMMA:     ",",
 	SEMICOLON: ";",
 	COLON:     ":",
@@ -52,6 +56,7 @@ const (
 	// 标识符+字面量
 	IDENT // add, foobar, x, y, ...
 	INT   // 1343456
+	FLOAT
 	STRING
 
 	// 运算符
@@ -65,6 +70,7 @@ const (
 	GT
 	EQ
 	NOT_EQ
+	DOT
 
 	// 分隔符
 	COMMA
@@ -102,4 +108,11 @@ func LookupIdent(ident string) TokenType {
 		return tok
 	}
 	return IDENT
+}
+
+func DetermineNumberType(number string) TokenType {
+	if strings.Contains(number, ".") {
+		return FLOAT
+	}
+	return INT
 }

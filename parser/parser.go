@@ -74,8 +74,9 @@ func New(l *lexer.Lexer) *Parser {
 	}
 	// 初始化前缀解析函数，标识符和字面量部署运算符，属于特殊的前缀解析函数
 	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
-	p.registerPrefix(token.IDENT, p.parseIdentifier) // 这五个解析函数相当于递归的 base case，因为他们的解析还书里不包含对 parseExpression 的递归调用
+	p.registerPrefix(token.IDENT, p.parseIdentifier) // 这六个解析函数相当于递归的 base case，因为他们的解析还书里不包含对 parseExpression 的递归调用
 	p.registerPrefix(token.INT, p.parseIntegerLiteral)
+	p.registerPrefix(token.FLOAT, p.parseFloatLiteral)
 	p.registerPrefix(token.STRING, p.parseStringLiteral)
 	p.registerPrefix(token.FALSE, p.parseBooleanLiteral)
 	p.registerPrefix(token.TRUE, p.parseBooleanLiteral)
@@ -308,6 +309,19 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 	}
 	lit.Value = value
 	return lit
+}
+
+// parseFloatLiteral 浮点数字面量表达式解析函数
+func (p *Parser) parseFloatLiteral() ast.Expression {
+	fl := &ast.FloatLiteral{Token: p.curToken}
+	value, err := strconv.ParseFloat(p.curToken.Literal, 64)
+	if err != nil {
+		msg := fmt.Sprintf("could not parse %q as integer", p.curToken.Literal)
+		p.errors = append(p.errors, msg)
+		return nil
+	}
+	fl.Value = value
+	return fl
 }
 
 // parseBooleanLiteral 布尔字面量解析函数

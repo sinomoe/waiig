@@ -2,8 +2,10 @@ package object
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"hash/fnv"
+	"math"
 	"monkey/ast"
 	"strings"
 )
@@ -12,6 +14,7 @@ type ObjectType string
 
 const (
 	INTEGER_OBJ      = "INTEGER"
+	FLOAT_OBJ        = "FLOAT"
 	BOOLEAN_OBJ      = "BOOLEAN"
 	STRING_OBJ       = "STRING"
 	NULL_OBJ         = "NULL"
@@ -56,6 +59,31 @@ func (i *Integer) HashKey() HashKey {
 
 func NewInteger(val int64) *Integer {
 	return &Integer{
+		Value: val,
+	}
+}
+
+type Float struct {
+	Value float64
+}
+
+func (f *Float) Inspect() string {
+	return fmt.Sprintf("%f", f.Value)
+}
+
+func (f *Float) Type() ObjectType {
+	return FLOAT_OBJ
+}
+
+func (f *Float) HashKey() HashKey {
+	var bs = make([]byte, 8)
+	binary.LittleEndian.PutUint64(bs, math.Float64bits(f.Value))
+	hash := binary.LittleEndian.Uint64(bs)
+	return HashKey{Type: f.Type(), Value: hash}
+}
+
+func NewFloat(val float64) *Float {
+	return &Float{
 		Value: val,
 	}
 }

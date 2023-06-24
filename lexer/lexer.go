@@ -82,6 +82,8 @@ func (l *Lexer) NextToken() token.Token {
 	case '"':
 		tok.Type = token.STRING
 		tok.Literal = l.readString()
+	case '.':
+		tok = newToken(token.DOT, l.ch)
 	case 0:
 		tok = newToken(token.EOF)
 	default:
@@ -92,8 +94,8 @@ func (l *Lexer) NextToken() token.Token {
 			return tok                                // readIdentifier 中已经将 pos 移动到了下一位，这里必须提前返回
 		} else if isDigit(l.ch) {
 			// 识别数字字面量
-			tok.Type = token.INT
 			tok.Literal = l.readNumber()
+			tok.Type = token.DetermineNumberType(tok.Literal)
 			return tok
 		} else {
 			tok = newToken(token.ILLEGAL, l.ch)
@@ -127,7 +129,14 @@ func (l *Lexer) skipWhitespace() {
 
 func (l *Lexer) readNumber() string {
 	position := l.position
-	for isDigit(l.ch) {
+	onceDot := false
+	for isDigit(l.ch) || l.ch == '.' {
+		if l.ch == '.' {
+			if onceDot {
+				break
+			}
+			onceDot = true
+		}
 		l.readChar()
 	}
 	return l.input[position:l.position]
