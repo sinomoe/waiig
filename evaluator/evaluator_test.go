@@ -334,6 +334,7 @@ func TestFunctionApplication(t *testing.T) {
 		{"let add = fn(x, y) { x + y; }; add(5, 5);", 10},
 		{"let add = fn(x, y) { x + y; }; add(5 + 5, add(5, 5));", 20},
 		{"fn(x) { x; }(5)", 5},
+		{"fn foo(x) { x; }; foo(5)", 5},
 		{"let a = fn(x) { let b = fn(x) { return x; }; return b(x); }; a(5);", 5},
 		{
 			`let map = fn(arr, f) {

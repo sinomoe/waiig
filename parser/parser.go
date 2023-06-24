@@ -186,6 +186,15 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseLetStatement()
 	case token.RETURN:
 		return p.parseReturnStatement()
+	case token.FUNCTION:
+		// 可能是函数申明
+		if p.peekTokenIs(token.IDENT) {
+			return p.parseFunctionDeclarationStatement()
+		}
+		// 也可能是匿名函数字面量表达式
+		if p.peekTokenIs(token.LPAREN) {
+			return p.parseExpressionStatement()
+		}
 	}
 	return p.parseExpressionStatement()
 }
@@ -220,6 +229,29 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	if p.peekTokenIs(token.SEMICOLON) { // 允许 return 语句后不带分号
 		p.nextToken()
 	}
+	return stmt
+}
+
+// parseFunctionDeclarationStatement 解析 function 申明语句
+// fn <identifier>(<identifier>,...) <blockstatement>
+func (p *Parser) parseFunctionDeclarationStatement() *ast.FunctionDeclarationStatement {
+	stmt := &ast.FunctionDeclarationStatement{
+		Token:      p.curToken,
+		Name:       &ast.Identifier{},
+		Parameters: []*ast.Identifier{},
+	}
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	}
+	stmt.Name = p.parseIdentifier().(*ast.Identifier)
+	if !p.expectPeek(token.LPAREN) {
+		return nil
+	}
+	stmt.Parameters = p.parseFunctionParameters()
+	if !p.expectPeek(token.LBRACE) {
+		return nil
+	}
+	stmt.Body = p.parseBlockStatement()
 	return stmt
 }
 

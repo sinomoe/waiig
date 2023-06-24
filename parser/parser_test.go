@@ -7,6 +7,18 @@ import (
 	"testing"
 )
 
+func checkParserErrors(t *testing.T, p *Parser) {
+	errors := p.Errors()
+	if len(errors) == 0 {
+		return
+	}
+	t.Errorf("parser has %d errors", len(errors))
+	for _, msg := range errors {
+		t.Errorf("parser error: %q", msg)
+	}
+	t.FailNow()
+}
+
 func TestLetStatements(t *testing.T) {
 	tests := []struct {
 		input              string
@@ -63,24 +75,43 @@ func testLetStatement(t *testing.T, s ast.Statement, name string) bool {
 	return true
 }
 
-func checkParserErrors(t *testing.T, p *Parser) {
-	errors := p.Errors()
-	if len(errors) == 0 {
-		return
+func TestFunctionDeclarationStatement(t *testing.T) {
+	input := `fn foo(x, y) { x + y; }`
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain %d statements. got=%d\n",
+			1, len(program.Statements))
 	}
-	t.Errorf("parser has %d errors", len(errors))
-	for _, msg := range errors {
-		t.Errorf("parser error: %q", msg)
+	function, ok := program.Statements[0].(*ast.FunctionDeclarationStatement)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not ast.FunctionDeclarationStatement. got=%T", program.Statements[0])
 	}
-	t.FailNow()
+	if len(function.Parameters) != 2 {
+		t.Fatalf("function statement parameters wrong. want 2, got=%d\n",
+			len(function.Parameters))
+	}
+	testLiteralExpression(t, function.Parameters[0], "x")
+	testLiteralExpression(t, function.Parameters[1], "y")
+	if len(function.Body.Statements) != 1 {
+		t.Fatalf("function.Body.Statements has not 1 statements. got=%d\n",
+			len(function.Body.Statements))
+	}
+	bodyStmt, ok := function.Body.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("function body stmt is not ast.ExpressionStatement. got=%T", function.Body.Statements[0])
+	}
+	testInfixExpression(t, bodyStmt.Expression, "x", "+", "y")
 }
 
-func TestReturnStatements(t *testing.T) {
+func TestFunctionStatements(t *testing.T) {
 	tests := []struct {
 		input         string
 		expectedValue interface{}
 	}{
-		{"return 5;", 5},
+		{"fn foo();", 5},
 		{"return true;", true},
 		{"return foobar;", "foobar"},
 	}

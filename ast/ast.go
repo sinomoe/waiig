@@ -64,6 +64,31 @@ func (ls *LetStatement) String() string {
 	return out.String()
 }
 
+type FunctionDeclarationStatement struct {
+	Token      token.Token
+	Name       *Identifier
+	Parameters []*Identifier
+	Body       *BlockStatement
+}
+
+func (fs *FunctionDeclarationStatement) statementNode()       {}
+func (fs *FunctionDeclarationStatement) TokenLiteral() string { return fs.Token.Literal }
+func (fs *FunctionDeclarationStatement) String() string {
+	var out bytes.Buffer
+	var params []string
+	for _, p := range fs.Parameters {
+		params = append(params, p.String())
+	}
+	out.WriteString("fn ")
+	out.WriteString(fs.Name.String())
+	out.WriteString("(")
+	out.WriteString(strings.Join(params, ", "))
+	out.WriteString(")")
+	out.WriteString(" ")
+	out.WriteString(fs.Body.String())
+	return out.String()
+}
+
 // AssignExpression 赋值表达式节点
 type AssignExpression struct {
 	Token token.Token // token.ASSIGN 词法单元

@@ -65,6 +65,17 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			return val
 		}
 		env.Set(v.Name.Value, val)
+	case *ast.FunctionDeclarationStatement:
+		_, ok := env.GetLocal(v.Name.Value)
+		if ok {
+			return newError("identifier exist: " + v.Name.Value)
+		}
+		f := &object.Function{
+			Parameters: v.Parameters,
+			Body:       v.Body,
+			Env:        env,
+		}
+		env.Set(v.Name.Value, f)
 	case *ast.AssignExpression:
 		val := Eval(v.Value, env)
 		if isError(val) {
