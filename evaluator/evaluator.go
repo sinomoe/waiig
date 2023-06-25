@@ -50,6 +50,8 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 	case *ast.ExpressionStatement:
 		return Eval(v.Expression, env)
 	case *ast.BlockStatement:
+		// 为 block 创建块级作用域
+		env = object.NewEnclosedEnviroment(env)
 		return evalBlockStatement(v.Statements, env)
 	case *ast.ReturnStatement:
 		val := Eval(v.ReturnValue, env)
@@ -427,7 +429,7 @@ func applyFunction(fn object.Object, args []object.Object) object.Object {
 		for i, param := range f.Parameters {
 			env.Set(param.String(), args[i])
 		}
-		val := Eval(f.Body, env)
+		val := evalBlockStatement(f.Body.Statements, env)
 		// 重要：函数调用后应该返回一个解包后的值
 		// 这里不进行解包会导致这个 ReturnValue 向上冒泡
 		// 从而导致上层调用异常提前返回

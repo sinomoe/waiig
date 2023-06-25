@@ -18,28 +18,33 @@ func testEval(input string) object.Object {
 func TestEvalIntegerExpression(t *testing.T) {
 	tests := []struct {
 		input    string
-		expected int64
+		expected any
 	}{
-		{"5", 5},
-		{"10", 10},
-		{"-5", -5},
-		{"-10", -10},
-		{"1 / 2", 0},
-		{"5 + 5 + 5 + 5 - 10", 10},
-		{"2 * 2 * 2 * 2 * 2", 32},
-		{"-50 + 100 + -50", 0},
-		{"5 * 2 + 10", 20},
-		{"5 + 2 * 10", 25},
-		{"20 + 2 * -10", 0},
-		{"50 / 2 * 2 + 10", 60},
-		{"2 * (5 + 10)", 30},
-		{"3 * 3 * 3 + 10", 37},
-		{"3 * (3 * 3) + 10", 37},
-		{"(5 + 10 * 2 + 15 / 3) * 2 + -10", 50},
+		{"5", int64(5)},
+		{"10", int64(10)},
+		{"-5", -int64(5)},
+		{"-10", -int64(10)},
+		{"1 / 2", float64(0.5)},
+		{"5 + 5 + 5 + 5 - 10", int64(10)},
+		{"2 * 2 * 2 * 2 * 2", int64(32)},
+		{"-50 + 100 + -50", int64(0)},
+		{"5 * 2 + 10", int64(20)},
+		{"5 + 2 * 10", int64(25)},
+		{"20 + 2 * -10", int64(0)},
+		{"50 / 2 * 2 + 10", float64(60)},
+		{"2 * (5 + 10)", int64(30)},
+		{"3 * 3 * 3 + 10", int64(37)},
+		{"3 * (3 * 3) + 10", int64(37)},
+		{"(5 + 10 * 2 + 15 / 3) * 2 + -10", float64(50)},
 	}
 	for _, tt := range tests {
 		evaluated := testEval(tt.input)
-		testIntegerObject(t, evaluated, tt.expected)
+		switch v := tt.expected.(type) {
+		case int64:
+			testIntegerObject(t, evaluated, v)
+		case float64:
+			testFloatObject(t, evaluated, v)
+		}
 	}
 }
 
@@ -596,13 +601,13 @@ func TestHashLiterals(t *testing.T) {
 	if !ok {
 		t.Fatalf("Eval didn't return Hash. got=%T (%+v)", evaluated, evaluated)
 	}
-	expected := map[object.HashKey]int64{
-		(&object.String{Value: "one"}).HashKey():   1,
-		(&object.String{Value: "two"}).HashKey():   2,
-		(&object.String{Value: "three"}).HashKey(): 3,
-		(&object.Integer{Value: 4}).HashKey():      4,
-		TRUE.HashKey():                             5,
-		FALSE.HashKey():                            6,
+	expected := map[object.HashKey]any{
+		(&object.String{Value: "one"}).HashKey():   int64(1),
+		(&object.String{Value: "two"}).HashKey():   int64(2),
+		(&object.String{Value: "three"}).HashKey(): float64(3.0),
+		(&object.Integer{Value: 4}).HashKey():      int64(4),
+		TRUE.HashKey():                             int64(5),
+		FALSE.HashKey():                            int64(6),
 	}
 	if len(result.Pairs) != len(expected) {
 		t.Fatalf("Hash has wrong num of pairs. got=%d", len(result.Pairs))
@@ -612,7 +617,12 @@ func TestHashLiterals(t *testing.T) {
 		if !ok {
 			t.Errorf("no pair for given key in Pairs")
 		}
-		testIntegerObject(t, pair.Value, expectedValue)
+		switch v := expectedValue.(type) {
+		case int64:
+			testIntegerObject(t, pair.Value, v)
+		case float64:
+			testFloatObject(t, pair.Value, v)
+		}
 	}
 }
 
