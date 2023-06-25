@@ -31,6 +31,8 @@ if (5 < 10) {
 [1, 2];
 {"foo": "bar"}
 3.1415926
+a >= b
+a <= b
 `
 
 	tests := []struct {
@@ -125,6 +127,12 @@ if (5 < 10) {
 		{token.STRING, "bar"},
 		{token.RBRACE, "}"},
 		{token.FLOAT, "3.1415926"},
+		{token.IDENT, "a"},
+		{token.GTE, ">="},
+		{token.IDENT, "b"},
+		{token.IDENT, "a"},
+		{token.LTE, "<="},
+		{token.IDENT, "b"},
 		{token.EOF, ""},
 	}
 

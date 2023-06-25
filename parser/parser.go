@@ -40,6 +40,8 @@ var precedences = map[token.TokenType]int{
 	token.NOT_EQ:   EQUALS,
 	token.LT:       LESSGREATER,
 	token.GT:       LESSGREATER,
+	token.LTE:      LESSGREATER,
+	token.GTE:      LESSGREATER,
 	token.PLUS:     SUM,
 	token.MINUS:    SUM,
 	token.SLASH:    PRODUCT,
@@ -100,6 +102,8 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(token.NOT_EQ, p.parseInfixExpression)
 	p.registerInfix(token.LT, p.parseInfixExpression)
 	p.registerInfix(token.GT, p.parseInfixExpression)
+	p.registerInfix(token.LTE, p.parseInfixExpression)
+	p.registerInfix(token.GTE, p.parseInfixExpression)
 
 	p.registerInfix(token.LPAREN, p.parseCallExpression)    // 解析函数调用,  把函数调用当作中缀表达式
 	p.registerInfix(token.LBRACKET, p.parseIndexExpression) // 解析数组索引
@@ -361,6 +365,8 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 // <expression> == <expression>
 // <expression> > <expression>
 // <expression> < <expression>
+// <expression> >= <expression>
+// <expression> <= <expression>
 func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	ie := &ast.InfixExpression{
 		Token:    p.curToken,

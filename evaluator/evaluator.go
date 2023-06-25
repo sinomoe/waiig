@@ -249,6 +249,10 @@ func evalIntegerInfixExpression(operator string, left, right object.Object) obje
 		return nativeBoolToBooleanObject(leftVal > rightVal)
 	case "<":
 		return nativeBoolToBooleanObject(leftVal < rightVal)
+	case ">=":
+		return nativeBoolToBooleanObject(leftVal >= rightVal)
+	case "<=":
+		return nativeBoolToBooleanObject(leftVal <= rightVal)
 	case "==":
 		return nativeBoolToBooleanObject(leftVal == rightVal)
 	case "!=":
@@ -276,6 +280,10 @@ func evalFloatInfixExpression(operator string, left, right object.Object) object
 		return nativeBoolToBooleanObject(leftVal > rightVal)
 	case "<":
 		return nativeBoolToBooleanObject(leftVal < rightVal)
+	case ">=":
+		return nativeBoolToBooleanObject(leftVal >= rightVal)
+	case "<=":
+		return nativeBoolToBooleanObject(leftVal <= rightVal)
 	case "==":
 		return nativeBoolToBooleanObject(leftVal == rightVal)
 	case "!=":
@@ -322,6 +330,14 @@ func evalStringInfixExpression(operator string, left, right object.Object) objec
 		return nativeBoolToBooleanObject(leftVal == rightVal)
 	case "!=":
 		return nativeBoolToBooleanObject(leftVal != rightVal)
+	case ">":
+		return nativeBoolToBooleanObject(leftVal > rightVal)
+	case ">=":
+		return nativeBoolToBooleanObject(leftVal >= rightVal)
+	case "<":
+		return nativeBoolToBooleanObject(leftVal < rightVal)
+	case "<=":
+		return nativeBoolToBooleanObject(leftVal <= rightVal)
 	default:
 		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
