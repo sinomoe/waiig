@@ -272,9 +272,9 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 
 // parseExpression 表达式解析函数
 // 调用时 curToken 是表达式第一个 token, 返回后 curToken 是表达式最后一个 token
-// 处理表达式时不要吞掉句末的 ; 词元, 吞掉 ; 词元统一交给语句解析式处理, 这里对应的是 parseExpressionStatement
+// 处理表达式时不要吞掉句末的 ; 词元, 吞掉 ; 词元统一交给语句解析函数处理, 这里对应的是 parseExpressionStatement
 func (p *Parser) parseExpression(precedence int) ast.Expression {
-	prefix := p.prefixParseFns[p.curToken.Type]
+	prefix := p.prefixParseFns[p.curToken.Type] // 其中 Interger/Identifier/Boolean 相当于递归的 base case
 	if prefix == nil {
 		p.noPrefixParseFnError(p.curToken.Type)
 		return nil
